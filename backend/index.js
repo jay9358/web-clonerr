@@ -19,7 +19,7 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "https://web-clonerr-56fz.vercel.app", // allow only your frontend
+    origin: process.env.CORS_ORIGIN || "https://web-clonerr.vercel.app", // allow only your frontend
     methods: ["GET", "POST", "PUT", "DELETE"], // restrict methods
     allowedHeaders: ["Content-Type", "Authorization"], // headers you expect
     credentials: true
