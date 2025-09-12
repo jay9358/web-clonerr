@@ -9,13 +9,31 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+
 // Middleware
 app.use(
   helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"], // only allow same-origin by default
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'", // needed if cloned HTML contains inline scripts
+          "'unsafe-eval'",   // sometimes needed for dev tools
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https:"], // allow inline and CDN styles
+        imgSrc: ["'self'", "data:", "https:"], // allow images from self, data URLs, and HTTPS
+        connectSrc: ["'self'", "https:"], // allow XHR/fetch to your backend or external
+        frameSrc: ["'self'", "https:"], // allow iframes to load external sites
+        objectSrc: ["'none'"], // disable <object>, <embed>, <applet>
+        upgradeInsecureRequests: [],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Puppeteer/iframe may need this
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // optional
   })
 );
+
 
 app.use(
   cors({
