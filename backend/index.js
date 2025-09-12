@@ -63,7 +63,8 @@ async function capturePage(url) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
 
     const html = await page.content();
 
