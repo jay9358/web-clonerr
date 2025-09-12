@@ -19,7 +19,7 @@ function App() {
       inFlight = true;
       try {
         const response = await fetch('https://web-clonerr-56fz.vercel.app/api/health', { cache: 'no-store' });
-        if (response.ok) {
+          if (response.ok) {
           const data = await response.json();
           if (data.status === 'OK') {
             setBackendStatus('connected');
