@@ -1,10 +1,10 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const chromium = require('@sparticuz/chromium'); // serverless Chrome
+const puppeteer = require('puppeteer-core'); // lightweight Puppeteer
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,16 +13,16 @@ const PORT = process.env.PORT || 5000;
 app.use(
   helmet({
     contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
   })
 );
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "https://web-clonerr.vercel.app", // allow only your frontend
-    methods: ["GET", "POST", "PUT", "DELETE"], // restrict methods
-    allowedHeaders: ["Content-Type", "Authorization"], // headers you expect
-    credentials: true
+    origin: process.env.CORS_ORIGIN || 'https://web-clonerr.vercel.app', // frontend domain
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 );
 
@@ -33,8 +33,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP
-  message: 'Too many requests from this IP, please try again later.'
+  max: 100, // limit per IP
+  message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', limiter);
 
@@ -43,8 +43,10 @@ let browser = null;
 async function initBrowser() {
   if (!browser) {
     browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
   }
   return browser;
@@ -57,9 +59,12 @@ async function capturePage(url) {
 
   try {
     await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForTimeout(2000);
+
     const html = await page.content();
 
     return { success: true, html, url, timestamp: new Date().toISOString() };
@@ -80,7 +85,10 @@ app.get('/api/health', (req, res) => {
 app.post('/api/crawl', async (req, res) => {
   const { url } = req.body;
   if (!url || !/^https?:\/\//i.test(url)) {
-    return res.status(400).json({ success: false, error: 'Invalid URL. Must start with http:// or https://' });
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid URL. Must start with http:// or https://',
+    });
   }
 
   try {
@@ -92,11 +100,11 @@ app.post('/api/crawl', async (req, res) => {
     }
   } catch (error) {
     console.error('Crawl error:', error.message);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res
+      .status(500)
+      .json({ success: false, error: 'Internal server error' });
   }
 });
-
-// Serve React frontend
 
 // Graceful shutdown
 const shutdown = async () => {
