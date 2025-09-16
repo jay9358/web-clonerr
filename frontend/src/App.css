@@ -171,8 +171,8 @@ body {
   font-weight: 600;
   border: none;
   border-radius: 50px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: rgb(255, 255, 255);
+  color: rgb(0, 0, 0);
   cursor: pointer;
   transition: all 0.3s ease;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -180,7 +180,7 @@ body {
 }
 
 .clear-button:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.766);
   transform: translateY(-2px);
 }
 
@@ -188,6 +188,7 @@ body {
 .loading-message {
   margin-top: 2rem;
   text-align: center;
+  color: rgb(0, 0,0)
 }
 
 .spinner {
