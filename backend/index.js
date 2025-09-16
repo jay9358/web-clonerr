@@ -32,12 +32,16 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'https://web-clonerr.vercel.app',
+    origin: [
+      'https://web-clonerr.vercel.app',
+      'http://localhost:3000'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
+
 
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
