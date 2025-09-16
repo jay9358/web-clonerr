@@ -1,493 +1,481 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { buildDomTree } from './utils/domUtils.js';
 import './CustomEditor.css';
 
-// Utilities
-function generateElementId(index) {
-  return `element-${index + 1}`;
-}
+// --- SVG Icon Definitions ---
+const ICONS = {
+    layers: "M12 1.5l-8.25 4.5 8.25 4.5 8.25-4.5L12 1.5zM3.75 9l8.25 4.5 8.25-4.5v4.5l-8.25 4.5-8.25-4.5V9z",
+    plus: "M12 4.5c.414 0 .75.336.75.75v6h6a.75.75 0 010 1.5h-6v6a.75.75 0 01-1.5 0v-6h-6a.75.75 0 010-1.5h6v-6c0-.414.336-.75.75-.75z",
+    desktop: "M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2v2h10V6H5zm0 4v2h10v-2H5zm-2 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z",
+    tablet: "M4 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h8v12H4V4z",
+    mobile: "M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2h6v10H7V4z",
+    magic: "M9.5 2c.28 0 .5.22.5.5V4h1.5a.5.5 0 01.5.5v1.5H13a.5.5 0 01.5.5v1.5h1.5a.5.5 0 01.5.5V11h.5a.5.5 0 01.5.5v1.5a.5.5 0 01-.5.5H16v1.5a.5.5 0 01-.5.5H14v.5a.5.5 0 01-.5.5h-1.5a.5.5 0 01-.5-.5V16h-1.5a.5.5 0 01-.5-.5V14h-.5a.5.5 0 01-.5-.5v-1.5A.5.5 0 018 11V9.5a.5.5 0 01.5-.5H10V7.5a.5.5 0 01.5-.5H12V5.5a.5.5 0 01.5-.5H14V4h.5a.5.5 0 01.5-.5h1.5a.5.5 0 01.5.5V6h.5a.5.5 0 01.5.5V8h.5a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H17v1.5a.5.5 0 01-.5.5h-1.5a.5.5 0 01-.5-.5V13h-1.5a.5.5 0 01-.5-.5V11h-1.5a.5.5 0 01-.5-.5V9.5a.5.5 0 01.5-.5H12V7.5a.5.5 0 01.5-.5H14V5.5a.5.5 0 01.5-.5h.5a.5.5 0 01.5.5V7h.5a.5.5 0 01.5.5v2a.5.5 0 01-.5.5H15v1.5a.5.5 0 01-.5.5h-2a.5.5 0 01-.5-.5V11H11v1.5a.5.5 0 01-.5.5H9.5a.5.5 0 01-.5-.5V11H7.5a.5.5 0 01-.5-.5V9.5a.5.5 0 01.5-.5H9V7.5a.5.5 0 01.5-.5h1.5a.5.5 0 01.5.5V9h1.5a.5.5 0 01.5.5v1.5a.5.5 0 01-.5.5H13v1.5a.5.5 0 01-.5.5h-1.5a.5.5 0 01-.5-.5V13H9.5a.5.5 0 01-.5-.5v-1.5a.5.5 0 01.5-.5H11V9.5a.5.5 0 01.5-.5h1.5a.5.5 0 01.5.5V11h.5a.5.5 0 01.5.5v.5a.5.5 0 01-.5.5H14v.5a.5.5 0 01-.5.5h-1.5a.5.5 0 01-.5-.5V12H11v-.5a.5.5 0 01-.5-.5V10H9.5a.5.5 0 01-.5-.5V8H7.5a.5.5 0 01-.5-.5V6h-.5a.5.5 0 01-.5-.5V4a.5.5 0 01.5-.5H8V2.5A.5.5 0 018.5 2h1z",
+    lock: "M8 1a2 2 0 00-2 2v2H5a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2H8zm0 2h4v2H8V3zm-3 4h10v8H5V7z",
+    unlock: "M8 1a2 2 0 00-2 2v2H5a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2H8zm0 2h1V3a1 1 0 10-2 0v2h1z",
+    chevronDown: "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z",
+    info: "M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5h2V7h-2v6zm0 4h2v-2h-2v2z",
+    arrowRight: "M10 3a1 1 0 01.707.293l5 5a1 1 0 010 1.414l-5 5A1 1 0 019 14V6a1 1 0 011-1z",
+    arrowLeft: "M10 3a1 1 0 011 1v10a1 1 0 01-1.707.707l-5-5a1 1 0 010-1.414l5-5A1 1 0 0110 3z",
+    arrowUp: "M3 10a1 1 0 01.293-.707l5-5a1 1 0 011.414 0l5 5a1 1 0 01-1.414 1.414L11 7.414V17a1 1 0 11-2 0V7.414L4.707 10.707A1 1 0 013 10z",
+    arrowDown: "M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6 8a1 1 0 011.707-.707l5-5a1 1 0 111.414 1.414l-5.707 5.707a1 1 0 01-1.414 0l-5.707-5.707a1 1 0 111.414-1.414L9 17.586V3a1 1 0 112 0v14.586z"
+};
 
-function collectEditableElements(root) {
-  const elements = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
-    acceptNode: (node) => {
-      const tag = node.tagName?.toLowerCase();
-      if (!tag) return NodeFilter.FILTER_REJECT;
-      // Include common tags; skip head/meta/style/script/link etc.
-      if (['script', 'style', 'link', 'meta', 'head', 'title', 'base'].includes(tag)) {
-        return NodeFilter.FILTER_REJECT;
-      }
-      return NodeFilter.FILTER_ACCEPT;
-    }
-  });
+const Icon = ({ path, className = "w-4 h-4" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d={path} clipRule="evenodd" />
+    </svg>
+);
 
-  let current = walker.currentNode;
-  while (current) {
-    elements.push(current);
-    current = walker.nextNode();
-  }
-  return elements;
-}
+// --- Left Sidebar Components ---
+const LeftSidebar = ({
+    tree,
+    selectedId,
+    lockedIds,
+    onSelect,
+    onDrop,
+    onToggleLock,
+    scrollContainerRef
+}) => {
+    return (
+        <div className="w-64 bg-[#18181B] text-gray-300 flex flex-col h-full border-r border-gray-700/50">
+            <div className="p-3 border-b border-gray-700/50">
+                <div className="font-semibold text-sm text-white">Pages</div>
+                <div className="mt-2 text-sm bg-gray-700/50 p-2 rounded-md cursor-pointer">Landing Page</div>
+            </div>
+            <div className="flex-grow overflow-y-auto" ref={scrollContainerRef}>
+                <DomTreeView tree={tree} selectedId={selectedId} lockedIds={lockedIds} onSelect={onSelect} onDrop={onDrop} onToggleLock={onToggleLock} />
+            </div>
+        </div>
+    );
+};
 
-function outerHtmlOf(node) {
-  if (!(node instanceof Element)) return '';
-  return node.outerHTML;
-}
+// --- DOM Tree View Components ---
+const DomTreeItem = ({ 
+    node, 
+    level,
+    selectedId,
+    lockedIds,
+    onSelect,
+    onDrop,
+    onToggleLock
+}) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const [isDragOver, setIsDragOver] = useState(null);
+    const [isHovered, setIsHovered] = useState(false);
 
+    const isSelected = selectedId === node.id;
+    const isLocked = lockedIds.has(node.id);
+    const hasChildren = node.children && node.children.length > 0;
+
+    const handleDragStart = (e) => { e.dataTransfer.setData('text/plain', node.id); e.stopPropagation(); };
+    const handleDrop = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if (draggedId && draggedId !== node.id) {
+            onDrop(draggedId, node.id, isDragOver === 'top' ? 'before' : 'after');
+        }
+        setIsDragOver(null);
+    };
+    const handleDragOver = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        setIsDragOver(e.clientY < midY ? 'top' : 'bottom');
+    };
+    const handleDragLeave = (e) => { e.stopPropagation(); setIsDragOver(null); };
+
+    return (
+        <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className="relative text-xs" data-tree-id={node.id}>
+            <div
+                draggable
+                onDragStart={handleDragStart}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                className={`flex items-center rounded cursor-pointer transition-colors pr-2 group ${isSelected ? 'bg-blue-600/30' : 'hover:bg-gray-700/50'}`}
+                style={{ paddingLeft: `${level * 16}px` }}
+                onClick={() => onSelect(node.element)}
+            >
+                <div onClick={(e) => { e.stopPropagation(); hasChildren && setIsExpanded(!isExpanded); }} className="w-5 h-6 flex-shrink-0 flex items-center justify-center text-gray-500">
+                    {hasChildren && <span className={`transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>}
+                </div>
+                <div className="py-1 flex-grow truncate">
+                    <span className={isSelected ? 'text-white' : 'text-gray-300'}>{node.label}</span>
+                </div>
+                {(isHovered || isLocked) && (
+                    <button onClick={(e) => { e.stopPropagation(); onToggleLock(node.id); }} className="p-1 rounded hover:bg-gray-600">
+                        <Icon path={isLocked ? ICONS.lock : ICONS.unlock} className={`w-3.5 h-3.5 ${isLocked ? 'text-blue-400' : 'text-gray-500'}`} />
+                    </button>
+                )}
+            </div>
+            {isDragOver && <div className={`absolute left-0 right-0 h-0.5 bg-blue-400 z-10 ${isDragOver === 'top' ? 'top-0' : 'bottom-0'}`}></div>}
+            {isExpanded && hasChildren && (
+                <div>{node.children.map(child => <DomTreeItem key={child.id} node={child} level={level + 1} selectedId={selectedId} lockedIds={lockedIds} onSelect={onSelect} onDrop={onDrop} onToggleLock={onToggleLock} />)}</div>
+            )}
+        </div>
+    );
+};
+
+// FIX: Corrected DomTreeView props to include 'tree' and avoid passing it down to DomTreeItem.
+const DomTreeView = ({ tree, ...rest }) => (
+    <div className="p-2">
+        <div className="text-xs font-semibold text-gray-400 mb-2 px-2 flex items-center gap-2">
+            <Icon path={ICONS.layers} /> LAYERS
+        </div>
+        {tree.map(node => <DomTreeItem key={node.id} node={node} level={0} {...rest} />)}
+    </div>
+);
+
+// --- Center Panel: Toolbar and Canvas ---
+const DEVICE_WIDTHS = { desktop: '100%', tablet: '768px', mobile: '375px' };
+
+
+const Toolbar = ({
+    zoom,
+    setZoom,
+    device,
+    setDevice,
+    onGenerate
+}) => (
+    <div className="bg-[#18181B] h-12 flex items-center justify-between px-4 border-b border-gray-700/50">
+        <div className="flex-1"></div>
+        <div className="flex-1 flex justify-center items-center gap-2">
+            {(['desktop', 'tablet', 'mobile']).map(d => (
+                <button key={d} onClick={() => setDevice(d)} className={`p-2 rounded-md ${device === d ? 'bg-gray-600' : 'hover:bg-gray-700/50'}`}>
+                    <Icon path={ICONS[d]} className="w-5 h-5 text-gray-300"/>
+                </button>
+            ))}
+            <div className="w-px h-6 bg-gray-700/50 mx-2"></div>
+            <select value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} className="bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {[50, 75, 100, 125].map(v => <option key={v} value={v/100}>{v}%</option>)}
+            </select>
+        </div>
+        <div className="flex-1 flex justify-end">
+            <button onClick={onGenerate} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-4 rounded-md text-sm transition-colors flex items-center gap-2">
+                <Icon path={ICONS.magic} className="w-4 h-4" />
+                Generate
+            </button>
+        </div>
+    </div>
+);
+
+const CenterPanel = ({ iframeRef, device, zoom }) => (
+    <div className="flex-grow bg-[#09090B] flex items-center justify-center overflow-auto p-8">
+        <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }} className="transition-transform duration-200">
+            <iframe ref={iframeRef} className="bg-white shadow-2xl" style={{ width: DEVICE_WIDTHS[device], height: '80vh', border: 'none', transition: 'width 0.3s ease-in-out' }} title="Preview" sandbox="allow-scripts allow-same-origin"/>
+        </div>
+    </div>
+);
+
+// --- Right Sidebar: Inspector ---
+// FIX: Made children prop optional to allow for empty sections, which was causing a TypeScript error.
+const StyleSection = ({ title, children }) => {
+    const [isOpen, setIsOpen] = useState(true);
+    return (
+        <div className="border-b border-gray-700/50">
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-2 hover:bg-gray-700/30">
+                <span className="font-semibold text-xs text-gray-400">{title}</span>
+                <Icon path={ICONS.chevronDown} className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isOpen && <div className="p-3 space-y-3">{children}</div>}
+        </div>
+    );
+};
+
+const StyleControl = ({ label, children }) => (
+    <div className="flex items-center justify-between text-xs">
+        <label className="text-gray-400 flex items-center gap-1">
+            <Icon path={ICONS.info} className="w-3 h-3 text-gray-500" /> {label}
+        </label>
+        {children}
+    </div>
+);
+
+const IconButtonGroup = ({ options, value, onChange }) => (
+    <div className="flex bg-gray-900/50 border border-gray-600 rounded-md">
+        {options.map(opt => (
+            <button key={opt.value} onClick={() => onChange(opt.value)} className={`p-1.5 ${value === opt.value ? 'bg-gray-600' : 'hover:bg-gray-700/50'} first:rounded-l-md last:rounded-r-md`}>
+                <Icon path={opt.icon} className="w-4 h-4 text-gray-300"/>
+            </button>
+        ))}
+    </div>
+);
+
+const RightSidebar = ({
+    element,
+    onStyleChange
+}) => {
+    const [styles, setStyles] = useState({});
+    const [activeTab, setActiveTab] = useState('Styles');
+    
+    useEffect(() => {
+        if (element) {
+            const computed = window.getComputedStyle(element);
+            setStyles({
+                display: computed.display,
+                flexDirection: computed.flexDirection,
+                justifyContent: computed.justifyContent,
+                alignItems: computed.alignItems,
+            });
+        }
+    }, [element]);
+
+    if (!element) return <div className="w-72 bg-[#18181B] text-gray-400 p-4 text-sm border-l border-gray-700/50">Select an element to inspect.</div>;
+
+    return (
+        <div className="w-72 bg-[#18181B] flex flex-col h-full border-l border-gray-700/50">
+            <div className="flex border-b border-gray-700/50">
+                {['Styles', 'Properties'].map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 p-2 text-sm font-medium ${activeTab === tab ? 'text-white bg-gray-700/30' : 'text-gray-400 hover:bg-gray-700/50'}`}>
+                        {tab}
+                    </button>
+                ))}
+            </div>
+            <div className="flex-grow overflow-y-auto">
+                 {activeTab === 'Styles' && (
+                    <div>
+                        <StyleSection title="Layout">
+                            <StyleControl label="Display">
+                               <select value={styles.display || ''} onChange={e => onStyleChange('display', e.target.value)} className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs w-28">
+                                    <option>block</option><option>inline-block</option><option>flex</option><option>grid</option><option>none</option>
+                                </select>
+                            </StyleControl>
+                             {styles.display === 'flex' && <>
+                                <StyleControl label="Direction">
+                                    <IconButtonGroup value={styles.flexDirection} onChange={v => onStyleChange('flex-direction', v)} options={[
+                                        {value: 'row', icon: ICONS.arrowRight}, {value: 'column', icon: ICONS.arrowDown},
+                                        {value: 'row-reverse', icon: ICONS.arrowLeft}, {value: 'column-reverse', icon: ICONS.arrowUp}
+                                    ]} />
+                                </StyleControl>
+                                <StyleControl label="Justify"><p className="text-gray-500">Center</p></StyleControl>
+                                <StyleControl label="Align"><p className="text-gray-500">Stretch</p></StyleControl>
+                             </>}
+                        </StyleSection>
+                         <StyleSection title="Spacing">{/* Spacing controls go here */}</StyleSection>
+                         <StyleSection title="Typography">{/* Typography controls go here */}</StyleSection>
+                         <StyleSection title="Appearance">{/* Appearance controls go here */}</StyleSection>
+                    </div>
+                 )}
+                 {activeTab === 'Properties' && <div className="p-4 text-xs text-gray-500">Properties inspector is not yet implemented.</div>}
+            </div>
+        </div>
+    );
+};
+
+// --- Main App Component ---
 export default function CustomEditor({ htmlContent, originalUrl }) {
-  const containerRef = useRef(null);
   const iframeRef = useRef(null);
+    const [domTree, setDomTree] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [hoverElement, setHoverElement] = useState(null);
-  const [registry, setRegistry] = useState([]);
-  const [regions, setRegions] = useState([]); // eslint-disable-line no-unused-vars
-  const [domTree, setDomTree] = useState([]);
-  const [expanded, setExpanded] = useState(new Set());
-  const [zoom, setZoom] = useState(0.8); // default zoomed-out canvas for editing context
-  const [locked, setLocked] = useState(new Set());
+    const leftSidebarScrollRef = useRef(null);
+    const [zoom, setZoom] = useState(1);
+    const [device, setDevice] = useState('desktop');
+    const [lockedIds, setLockedIds] = useState(new Set());
+    const selectedId = useMemo(() => selectedElement?.getAttribute('data-editor-id'), [selectedElement]);
 
-  // Load content into an iframe to mirror CSS/JS behavior of real page
+    const refreshDomTree = useCallback(() => {
+        const doc = iframeRef.current?.contentDocument;
+        if (doc?.body) {
+            try {
+                setDomTree(buildDomTree(doc.body));
+            } catch (error) {
+                console.error('Error building DOM tree:', error);
+                setDomTree([]);
+            }
+        }
+    }, []);
+    
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
+        iframe.srcdoc = htmlContent || '<!doctype html><html><head></head><body></body></html>';
 
-    // Build iframe HTML with <base> and jQuery first to ensure typical compatibility
-    const parser = new DOMParser();
-    const dom = parser.parseFromString(htmlContent || '<!doctype html><html><head></head><body></body></html>', 'text/html');
-    // Ensure <base>
-    const baseHref = originalUrl || '/';
-    const hasBase = !!dom.querySelector('head base');
-    if (!hasBase) {
-      const base = dom.createElement('base');
-      base.setAttribute('href', baseHref);
-      dom.head.prepend(base);
-    } else if (originalUrl) {
-      const base = dom.querySelector('head base');
-      base.setAttribute('href', baseHref);
-    }
-
-    // Absolutize link/script URLs
-    Array.from(dom.querySelectorAll('link[rel="stylesheet"]')).forEach((l) => {
-      const href = l.getAttribute('href');
-      if (!href) return;
-      try { l.setAttribute('href', new URL(href, baseHref).toString()); } catch {}
-    });
-    Array.from(dom.querySelectorAll('script[src]')).forEach((s) => {
-      const src = s.getAttribute('src');
-      if (!src) return;
-      try { s.setAttribute('src', new URL(src, baseHref).toString()); } catch {}
-    });
-
-    // Prepend jQuery if not present
-    const hasJq = Array.from(dom.querySelectorAll('script[src]')).some((s) => /jquery/i.test(s.getAttribute('src') || ''));
-    if (!hasJq) {
-      const jq = dom.createElement('script');
-      jq.setAttribute('src', 'https://code.jquery.com/jquery-3.6.0.min.js');
-      dom.head.prepend(jq);
-    }
-
-    const iframeHtml = '<!doctype html>' + dom.documentElement.outerHTML;
-    iframe.srcdoc = iframeHtml;
-
-    function setupIframe() {
+        const setupIframe = () => {
       const doc = iframe.contentDocument;
       if (!doc) return;
 
-      // Create overlay inside iframe for hover/selection
-      let overlay = doc.getElementById('ce-overlay');
+            try {
+                let overlay = doc.getElementById('editor-overlay');
       if (!overlay) {
         overlay = doc.createElement('div');
-        overlay.id = 'ce-overlay';
+                    overlay.id = 'editor-overlay';
         overlay.style.position = 'absolute';
         overlay.style.pointerEvents = 'none';
-        overlay.style.border = '2px dashed #3b82f6';
-        overlay.style.borderRadius = '4px';
-        overlay.style.display = 'none';
         overlay.style.zIndex = '2147483647';
         doc.body.appendChild(overlay);
       }
 
-      // Build registry from iframe body (grouped by nearest section/div region)
-      const root = doc.body;
-      const REGION_TAGS = new Set(['section', 'div', 'header', 'footer', 'article', 'aside', 'nav']);
-      const nodes = collectEditableElements(root);
-      const regionMap = new Map(); // Element -> regionId
-      const regionMeta = new Map(); // regionId -> { id, label, el }
-      let regionCounter = 0;
+                refreshDomTree();
+            } catch (error) {
+                console.error('Error setting up iframe:', error);
+            }
 
-      function getRegionFor(node) {
-        let cur = node.parentElement;
-        while (cur && cur !== root) {
-          if (cur.tagName && REGION_TAGS.has(cur.tagName.toLowerCase())) return cur;
-          cur = cur.parentElement;
-        }
-        return root;
-      }
-
-      function getRegionId(regionEl) {
-        if (regionMap.has(regionEl)) return regionMap.get(regionEl);
-        const id = regionEl === root ? 'region-root' : `region-${++regionCounter}`;
-        regionMap.set(regionEl, id);
-        const labelBase = regionEl === root ? 'Document Body' : regionEl.tagName.toLowerCase();
-        const idPart = regionEl.id ? `#${regionEl.id}` : '';
-        const cls = regionEl.classList && regionEl.classList.length ? `.${Array.from(regionEl.classList).join('.')}` : '';
-        const label = `${labelBase}${idPart}${cls}`;
-        regionMeta.set(id, { id, label, el: regionEl });
-        return id;
-      }
-
-      const next = nodes.map((el, idx) => {
-        const regionEl = getRegionFor(el);
-        const rid = getRegionId(regionEl);
-        return {
-          id: generateElementId(idx),
-          node: el,
-          rank: idx + 1,
-          locked: false,
-          content: outerHtmlOf(el),
-          regionId: rid,
-        };
-      });
-
-      setRegistry(next);
-      setRegions(Array.from(regionMeta.values()));
-
-      // Build Webflow-like DOM tree: top-level sections (or divs if no sections). When expanded, show catalogue of ALL descendants
-      // Note: tree is based on real descendants, not filtered tags
-      function shorten(token, len = 18) {
-        if (!token) return '';
-        return token.length > len ? token.slice(0, len) + '…' : token;
-      }
-      function makeLabel(el) {
-        const tag = el.tagName.toLowerCase();
-        const idPart = el.id ? `#${shorten(el.id, 20)}` : '';
-        const cls = el.classList && el.classList.length
-          ? `.${Array.from(el.classList).slice(0, 3).map((c) => shorten(c, 16)).join('.')}`
-          : '';
-        return `${tag}${idPart}${cls}`;
-      }
-      function buildFullChildren(el) {
-        const out = [];
-        for (const ch of Array.from(el.children)) {
-          if (!(ch instanceof doc.defaultView.Element)) continue;
-          out.push({ node: ch, label: makeLabel(ch), children: buildFullChildren(ch) });
-        }
-        return out;
-      }
-      // Prefer top-level sections; if none, use top-level divs
-      const topCandidates = Array.from(root.children).filter((el) => el instanceof doc.defaultView.Element);
-      const topSections = topCandidates.filter((el) => el.tagName.toLowerCase() === 'section');
-      const topDivs = topCandidates.filter((el) => el.tagName.toLowerCase() === 'div');
-      const topLevel = topSections.length ? topSections : topDivs;
-      const tree = topLevel.map((el) => ({ node: el, label: makeLabel(el), children: buildFullChildren(el) }));
-      setDomTree(tree);
-      // Expand all by default
-      const all = new Set();
-      (function collect(nodes){ nodes.forEach(n=>{ all.add(n.node); if (n.children && n.children.length) collect(n.children); }); })(tree);
-      setExpanded(all);
-
-      // Event listeners inside iframe (optimized)
-      let raf = null;
-      let lastHover = null;
       const onPointerMove = (e) => {
-        const ptX = e.clientX;
-        const ptY = e.clientY;
-        const target = doc.elementFromPoint(ptX, ptY);
-        if (!(target instanceof doc.defaultView.Element)) return;
-        if (!root.contains(target)) return;
-        if (target === lastHover) return;
-        lastHover = target;
-        if (raf) return;
-        raf = doc.defaultView.requestAnimationFrame(() => {
-          raf = null;
-          setHoverElement(lastHover);
-        });
-      };
-      const onMouseLeave = () => setHoverElement(null);
+                // Obtain overlay safely within handler scope
+                const overlayEl = doc.getElementById('editor-overlay');
+                let prevDisplay = '';
+                if (overlayEl) {
+                    // Hide overlay so it doesn't interfere with elementFromPoint
+                    prevDisplay = overlayEl.style.display;
+                    overlayEl.style.display = 'none';
+                }
+                const target = doc.elementFromPoint(e.clientX, e.clientY);
+                if (overlayEl) {
+                    // Restore overlay visibility
+                    overlayEl.style.display = prevDisplay;
+                }
+                setHoverElement((target && target !== doc.body && !(target instanceof HTMLElement && target.id === 'editor-overlay')) ? target : null);
+            };
       const onClick = (e) => {
-        const target = e.target instanceof doc.defaultView.Element ? e.target : null;
-        if (!target || !root.contains(target)) return;
-        e.preventDefault();
-        e.stopPropagation();
-        setSelectedElement(target);
-      };
-      doc.addEventListener('pointermove', onPointerMove, { capture: true, passive: true });
-      doc.addEventListener('mouseleave', onMouseLeave, true);
+                if(e.target instanceof Element) { e.preventDefault(); e.stopPropagation(); setSelectedElement(e.target); }
+            };
+            doc.addEventListener('pointermove', onPointerMove, true);
       doc.addEventListener('click', onClick, true);
 
-      // After initial render, block further network activity to keep visual only
-      const BLOCK_DELAY_MS = 1500;
-      const injectBlockers = () => {
-        try {
-          const blocker = doc.createElement('script');
-          blocker.type = 'text/javascript';
-          blocker.text = `
-            try {
-              (function(){
-                const w = window;
-                // Block fetch
-                if (w.fetch) w.fetch = function(){ return Promise.reject(new Error('Blocked by visual-only mode')); };
-                // Block XHR
-                if (w.XMLHttpRequest) {
-                  const XHRp = w.XMLHttpRequest.prototype;
-                  try { XHRp.open = function(){ return; }; } catch(e){}
-                  try { XHRp.send = function(){ return; }; } catch(e){}
-                  try { XHRp.setRequestHeader = function(){ return; }; } catch(e){}
-                }
-                // Block navigator.sendBeacon
-                if (w.navigator && w.navigator.sendBeacon) {
-                  try { w.navigator.sendBeacon = function(){ return false; }; } catch(e){}
-                }
-                // Block WebSocket & EventSource
-                try { w.WebSocket = function(){ throw new Error('Blocked by visual-only mode'); }; } catch(e){}
-                try { w.EventSource = function(){ throw new Error('Blocked by visual-only mode'); }; } catch(e){}
-                // Stop timers
-                try { w.setInterval = function(){ return 0; }; w.setTimeout = function(){ return 0; }; } catch(e){}
-                // Prevent further image/font/link loads
-                try {
-                  const imgDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-                  if (imgDesc && imgDesc.set) Object.defineProperty(HTMLImageElement.prototype, 'src', { set: function(_){} });
-                } catch(e){}
-                try {
-                  const linkDesc = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
-                  if (linkDesc && linkDesc.set) Object.defineProperty(HTMLLinkElement.prototype, 'href', { set: function(_){} });
-                } catch(e){}
-                try {
-                  const scriptDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
-                  if (scriptDesc && scriptDesc.set) Object.defineProperty(HTMLScriptElement.prototype, 'src', { set: function(_){} });
-                } catch(e){}
-              })();
-            } catch(err) {}
-          `;
-          doc.documentElement.appendChild(blocker);
-        } catch {}
-      };
-
-      const t = window.setTimeout(injectBlockers, BLOCK_DELAY_MS);
+            const blockerTimeout = setTimeout(() => {
+                const blockerScript = doc.createElement('script');
+                blockerScript.textContent = `window.fetch=()=>Promise.reject('Blocked');XMLHttpRequest.prototype.send=()=>{};setInterval=()=>0;setTimeout=()=>0;`;
+                doc.head.appendChild(blockerScript);
+            }, 2000);
 
       return () => {
         doc.removeEventListener('pointermove', onPointerMove, true);
-        doc.removeEventListener('mouseleave', onMouseLeave, true);
         doc.removeEventListener('click', onClick, true);
-        try { window.clearTimeout(t); } catch(e){}
-      };
-    }
+                clearTimeout(blockerTimeout);
+            };
+        };
 
-    const onLoad = () => {
-      cleanupListeners = setupIframe();
-      // Suppress noisy errors from page scripts inside iframe (visual only)
-      try {
-        const doc = iframe.contentDocument;
-        const errBlock = doc.createElement('script');
-        errBlock.text = `
-          (function(){
-            const w = window;
-            const noop = function(){};
-            w.addEventListener('error', function(e){ e.preventDefault && e.preventDefault(); return false; }, true);
-            w.addEventListener('unhandledrejection', function(e){ e.preventDefault && e.preventDefault(); return false; }, true);
-            // Guard querySelector with empty selector
-            const _qS = Document.prototype.querySelector;
-            Document.prototype.querySelector = function(sel){ if(!sel){ return null; } return _qS.call(this, sel); };
-            const _qSA = Document.prototype.querySelectorAll;
-            Document.prototype.querySelectorAll = function(sel){ if(!sel){ return []; } return _qSA.call(this, sel); };
-          })();
-        `;
-        doc.documentElement.appendChild(errBlock);
-      } catch {}
-    };
+        let cleanup = undefined;
+        iframe.addEventListener('load', () => { cleanup = setupIframe(); });
+        return () => { if (cleanup) cleanup(); };
+    }, [htmlContent, refreshDomTree]);
 
-    let cleanupListeners = null;
-    iframe.addEventListener('load', onLoad);
-    // If already loaded (fast path)
-    if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
-      cleanupListeners = setupIframe();
-    }
-
-    return () => {
-      iframe.removeEventListener('load', onLoad);
-      if (cleanupListeners) cleanupListeners();
-      // Reset selection state when reloading
-      setHoverElement(null);
-      setSelectedElement(null);
-      setRegistry([]);
-    };
-  }, [htmlContent, originalUrl]);
-
-  // Keep content in registry up to date when ranks/locks change
   useEffect(() => {
-    setRegistry((prev) => prev.map((item) => ({ ...item, content: outerHtmlOf(item.node) })));
-  }, [selectedElement]);
-
-  // Hover/selection overlay positioning inside iframe
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    const doc = iframe?.contentDocument;
-    if (!doc) return;
-    const overlay = doc.getElementById('ce-overlay');
+        const doc = iframeRef.current?.contentDocument;
+        const overlay = doc?.getElementById('editor-overlay');
     const target = hoverElement || selectedElement;
-    if (!overlay) return;
-    if (!target) {
-      overlay.style.display = 'none';
-      return;
-    }
-    const rect = target.getBoundingClientRect();
-    overlay.style.display = 'block';
-    overlay.style.left = `${rect.left + doc.defaultView.scrollX}px`;
-    overlay.style.top = `${rect.top + doc.defaultView.scrollY}px`;
-    overlay.style.width = `${rect.width}px`;
-    overlay.style.height = `${rect.height}px`;
-    overlay.setAttribute('data-mode', hoverElement ? 'hover' : 'selected');
+        if (!overlay || !target) { if (overlay) overlay.style.display = 'none'; return; }
+
+        const rect = target.getBoundingClientRect();
+        const style = overlay.style;
+        style.display = 'block';
+        style.left = `${rect.left + (doc.defaultView?.scrollX || 0)}px`;
+        style.top = `${rect.top + (doc.defaultView?.scrollY || 0)}px`;
+        style.width = `${rect.width}px`;
+        style.height = `${rect.height}px`;
+
+        if (selectedElement === target) {
+             overlay.setAttribute('data-mode', 'selected');
+            // Inline styles because parent CSS doesn't apply inside the iframe
+            style.border = '2px solid #2563EB';
+            style.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+        } else {
+             overlay.removeAttribute('data-mode');
+            // Hover state
+            style.border = '2px dashed #2563EB';
+            style.backgroundColor = 'transparent';
+        }
   }, [hoverElement, selectedElement]);
 
-  // Remove legacy host document listeners (handled inside iframe)
+    const handleSelect = useCallback((element) => {
+        setSelectedElement(element);
+        setHoverElement(null); // Clear hover state when selecting
+        
+        // Scroll within the iframe's viewport
+        const iframe = iframeRef.current;
+        if (iframe && iframe.contentWindow) {
+            const iframeWindow = iframe.contentWindow;
+            const iframeDoc = iframe.contentDocument;
+            
+            if (iframeWindow && iframeDoc) {
+                // Temporarily focus the iframe to ensure scrollIntoView works within it
+                iframe.focus();
+                
+                // Use a timeout to ensure the focus takes effect
+                setTimeout(() => {
+                    element.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center', 
+                        inline: 'center' 
+                    });
+                }, 50);
+            }
+        }
+    }, []);
 
-  // Selected item metadata removed (not used in current UI)
+    // Sync left panel scroll to selected tree item
+    useEffect(() => {
+        if (!selectedId) return;
+        const scrollContainer = leftSidebarScrollRef.current;
+        if (!scrollContainer) return;
+        // Use a timeout to allow React to render the selected state in the tree first
+        const timer = setTimeout(() => {
+            const item = scrollContainer.querySelector(`[data-tree-id="${selectedId}"]`);
+            if (item && typeof item.scrollIntoView === 'function') {
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [selectedId]);
 
-  // eslint-disable-next-line no-unused-vars
-  const leftListTags = useMemo(() => new Set(['div', 'section']), []);
-  // eslint-disable-next-line no-unused-vars
-  const groupedByRegion = useMemo(() => new Map(), []);
-
-  // Visible regions derived from groupedByRegion (not used directly in current UI)
-
-  function toggleExpand(nodeRef) {
-    setExpanded((prev) => {
+    const handleStyleChange = useCallback((property, value) => {
+        if (selectedElement && 'style' in selectedElement) {
+            try {
+                selectedElement.style.setProperty(property, value);
+            } catch (error) {
+                console.error('Error setting style property:', error);
+            }
+        }
+    }, [selectedElement]);
+    
+    const handleDrop = useCallback((draggedId, targetId, position) => {
+        const doc = iframeRef.current?.contentDocument;
+        if (!doc) return;
+        try {
+            const draggedEl = doc.querySelector(`[data-editor-id="${draggedId}"]`);
+            const targetEl = doc.querySelector(`[data-editor-id="${targetId}"]`);
+            if (draggedEl && targetEl?.parentElement) {
+                targetEl.parentElement.insertBefore(draggedEl, position === 'before' ? targetEl : targetEl.nextSibling);
+                refreshDomTree();
+            }
+        } catch (error) {
+            console.error('Error handling drop:', error);
+        }
+    }, [refreshDomTree]);
+    
+    const handleToggleLock = useCallback((id) => {
+        setLockedIds(prev => {
       const next = new Set(prev);
-      if (next.has(nodeRef)) next.delete(nodeRef); else next.add(nodeRef);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
       return next;
     });
-  }
+    }, []);
+    
+    const handleGenerate = () => {
+        // This is where you would send the layout to the backend.
+        // For now, we'll just log the locked elements.
+        try {
+            const lockedElementsData = Array.from(lockedIds).map(id => {
+                const el = iframeRef.current?.contentDocument?.querySelector(`[data-editor-id="${id}"]`);
+                return { id, html: el?.outerHTML };
+            });
+            console.log("Generating variations, preserving locked elements:", lockedElementsData);
+            alert(`Simulating layout generation.\n${lockedElementsData.length} elements are locked.`);
+        } catch (error) {
+            console.error('Error generating layout:', error);
+            alert('Error generating layout. Please try again.');
+        }
+    };
 
-  function toggleLockNode(nodeRef) {
-    setLocked((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeRef)) next.delete(nodeRef); else next.add(nodeRef);
-      return next;
-    });
-  }
-
-  function renderTree(nodes, level = 0) {
     return (
-      <div className="ce-tree" style={{ paddingLeft: level ? 10 : 0 }}>
-        {nodes.map((n, idx) => {
-          const isExpanded = expanded.has(n.node);
-          const isActive = selectedElement === n.node;
-          const hasChildren = n.children && n.children.length > 0;
-          const isLocked = locked.has(n.node);
-          return (
-            <div key={`${n.label}-${idx}`} className={`ce-tree-item ${isActive ? 'is-active' : ''} ${isLocked ? 'is-locked' : ''}`}>
-              <button className={`ce-caret ${hasChildren ? '' : 'is-empty'}`} onClick={() => hasChildren && toggleExpand(n.node)}>{hasChildren ? (isExpanded ? '▾' : '▸') : ''}</button>
-              <button className="ce-tree-label" title={n.label} onClick={() => setSelectedElement(n.node)}>
-                <span className="ce-tree-label-text">{n.label}</span>
-                {hasChildren ? <span className="ce-badge">{n.children.length}</span> : null}
-              </button>
-              <button className={`ce-lock ${isLocked ? 'on' : ''}`} title={isLocked ? 'Unblock' : 'Block'} onClick={() => toggleLockNode(n.node)}>{isLocked ? '🔒' : '🔓'}</button>
-              {hasChildren && isExpanded ? (
-                <div className="ce-tree-children">
-                  {renderTree(n.children, level + 1)}
-                </div>
-              ) : null}
+        <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+            <LeftSidebar tree={domTree} selectedId={selectedId} lockedIds={lockedIds} onSelect={handleSelect} onDrop={handleDrop} onToggleLock={handleToggleLock} scrollContainerRef={leftSidebarScrollRef}/>
+            <div className="flex-1 flex flex-col">
+                <Toolbar zoom={zoom} setZoom={setZoom} device={device} setDevice={setDevice} onGenerate={handleGenerate} />
+                <CenterPanel iframeRef={iframeRef} device={device} zoom={zoom} />
             </div>
-          );
-        })}
+            <RightSidebar element={selectedElement} onStyleChange={handleStyleChange} />
       </div>
     );
   }
-
-  // Editor actions for rank/lock removed in current UI
-
-  function exportJson() {
-    const data = registry.map(({ id, content, rank, locked }) => ({ id, content, rank, locked }));
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'elements.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  return (
-    <div className="ce-root">
-      <div className="ce-header">
-        <div className="ce-toolbar">
-          <div className="ce-toolbar-left">
-            <div className="ce-segment">
-              <button className="ce-icon-btn" title="Pages">📄</button>
-              <button className="ce-icon-btn" title="Assets">🗂️</button>
-              <button className="ce-icon-btn" title="Components">🧩</button>
-            </div>
-            <div className="ce-segment">
-              <button className="ce-icon-btn" title="Undo">↶</button>
-              <button className="ce-icon-btn" title="Redo">↷</button>
-            </div>
-          </div>
-          <div className="ce-toolbar-center">
-            <div className="ce-device">
-              <button className="ce-icon-btn" title="Desktop">🖥️</button>
-              <button className="ce-icon-btn" title="Tablet">📱</button>
-              <button className="ce-icon-btn" title="Mobile">📲</button>
-            </div>
-            <div className="ce-sep" />
-            <label className="ce-zoom">
-              <span>Zoom</span>
-              <select value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))}>
-                <option value={0.5}>50%</option>
-                <option value={0.75}>75%</option>
-                <option value={0.8}>80%</option>
-                <option value={1}>100%</option>
-                <option value={1.25}>125%</option>
-              </select>
-            </label>
-          </div>
-          <div className="ce-toolbar-right">
-            <button className="ce-btn" onClick={exportJson}>Export JSON</button>
-          </div>
-        </div>
-      </div>
-      <div className="ce-body">
-        <div className="ce-left">
-          <div className="ce-list">
-            <div className="ce-region">
-              <div className="ce-region-title">Structure</div>
-              {renderTree(domTree)}
-            </div>
-          </div>
-        </div>
-        <div className="ce-center">
-          <div className="ce-preview" ref={containerRef}>
-            <div className="ce-zoom-wrap" style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%` }}>
-              <iframe ref={iframeRef} className="ce-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-top-navigation-by-user-activation" title="Preview" />
-            </div>
-          </div>
-        </div>
-        <div className="ce-props">
-          <div className="ce-props-tabs">
-            <button className="ce-tab on">Styles</button>
-            <button className="ce-tab">Properties</button>
-          </div>
-          <div className="ce-props-body">
-            <div className="ce-prop-card">
-              <div className="ce-prop-title">Layout</div>
-              <div className="ce-prop-grid">
-                <label>Display<select defaultValue="block"><option value="block">Block</option><option value="flex">Flex</option></select></label>
-                <label>Align<select defaultValue="stretch"><option>stretch</option><option>center</option></select></label>
-                <label>Gap<input type="number" defaultValue={0} /></label>
-              </div>
-            </div>
-            <div className="ce-prop-card">
-              <div className="ce-prop-title">Spacing</div>
-              <div className="ce-prop-grid">
-                <label>Margin<input type="text" placeholder="0 0 0 0" /></label>
-                <label>Padding<input type="text" placeholder="0 0 0 0" /></label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-

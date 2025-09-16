@@ -7,7 +7,6 @@ function App() {
   const [clonedHtml, setClonedHtml] = useState('');
   const [error, setError] = useState('');
   const [originalUrl, setOriginalUrl] = useState('');
-  const [backendStatus, setBackendStatus] = useState('checking');
   const [viewMode, setViewMode] = useState('iframe'); // 'iframe' or 'studio'
 
   // Check backend status on component mount (throttled, stop when connected)
@@ -18,24 +17,18 @@ function App() {
       if (inFlight) return;
       inFlight = true;
       try {
-        const response = await fetch('https://web-clonerr-56fz.vercel.app/api/health', { cache: 'no-store' });
-          if (response.ok) {
+        const response = await fetch('/api/health', { cache: 'no-store' });
+        if (response.ok) {
           const data = await response.json();
           if (data.status === 'OK') {
-            setBackendStatus('connected');
             if (interval) {
               clearInterval(interval);
               interval = null;
             }
-          } else {
-            setBackendStatus('disconnected');
           }
-        } else {
-          setBackendStatus('disconnected');
         }
       } catch (error) {
         console.log('Backend health check failed:', error);
-        setBackendStatus('disconnected');
       } finally {
         inFlight = false;
       }
@@ -54,14 +47,14 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!url.trim()) return;
-
+    console.log('Making request to /api/crawl with URL:', url.trim());
     setLoading(true);
     setError('');
     setClonedHtml('');
 
     try {
       console.log('Making request to /api/crawl with URL:', url.trim());
-      const response = await fetch('https://web-clonerr-56fz.vercel.app/api/crawl', {
+      const response = await fetch('/api/crawl', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* Reset and base styles are now handled in App.css */
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
