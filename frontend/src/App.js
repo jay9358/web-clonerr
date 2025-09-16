@@ -130,7 +130,7 @@ function App() {
               className="clone-button"
               disabled={loading || !url.trim()}
             >
-              {loading ? '🔄 Cloning...' : '🚀 Clone'}
+              {loading ? ' Cloning...' : 'Clone'}
             </button>
             {clonedHtml && (
               <button 
@@ -162,7 +162,7 @@ function App() {
       {clonedHtml && (
         <main className="cloned-content">
         <div className="content-header">
-          <h2>📄 Cloned Website</h2>
+          <h2> Cloned Website</h2>
           <p className="original-url">
             Original: <a href={originalUrl} target="_blank" rel="noopener noreferrer">
               {originalUrl}
@@ -174,13 +174,13 @@ function App() {
               className={`mode-button ${viewMode === 'iframe' ? 'active' : ''}`}
               onClick={() => setViewMode('iframe')}
             >
-              🖼️ Iframe View
+               Iframe View
             </button>
             <button 
               className={`mode-button ${viewMode === 'studio' ? 'active' : ''}`}
               onClick={() => setViewMode('studio')}
             >
-              🎨 Visual Editor
+               Visual Editor
             </button>
           </div>
         </div>

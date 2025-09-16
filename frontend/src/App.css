@@ -10,7 +10,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:white;
   min-height: 100vh;
 }
 
@@ -22,7 +22,7 @@ body {
 
 /* Header Styles */
 .App-header {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(94, 74, 74, 0.1);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 2rem 1rem;
@@ -93,14 +93,14 @@ body {
 }
 
 .status-help code {
-  background: rgba(0, 0, 0, 0.2);
+  background: #ffffff;
   padding: 0.3rem 0.6rem;
   border-radius: 5px;
   font-family: 'Courier New', monospace;
   font-size: 0.8rem;
-  color: #fff;
+  color: #000000;
 }
-
+  
 /* Form Styles */
 .url-form {
   max-width: 600px;
@@ -122,8 +122,8 @@ body {
   font-size: 1rem;
   border: none;
   border-radius: 50px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
+  background: rgb(255, 255, 255);
+  color: #000000;
   outline: none;
   transition: all 0.3s ease;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -146,8 +146,8 @@ body {
   font-weight: 600;
   border: none;
   border-radius: 50px;
-  background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-  color: white;
+  background: #000000;
+  color: rgb(255, 255, 255);
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4);
