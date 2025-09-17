@@ -134,7 +134,8 @@ const Toolbar = ({
     setZoom,
     device,
     setDevice,
-    onGenerate
+    onGenerate,
+    onDownload
 }) => (
     <div className="bg-[#18181B] h-12 flex items-center justify-between px-4 border-b border-gray-700/50">
         <div className="flex-1"></div>
@@ -149,7 +150,10 @@ const Toolbar = ({
                 {[50, 75, 100, 125].map(v => <option key={v} value={v/100}>{v}%</option>)}
             </select>
         </div>
-        <div className="flex-1 flex justify-end">
+        <div className="flex-1 flex justify-end gap-2">
+            <button onClick={onDownload} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-1.5 px-4 rounded-md text-sm transition-colors">
+                Download
+            </button>
             <button onClick={onGenerate} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-4 rounded-md text-sm transition-colors flex items-center gap-2">
                 <Icon path={ICONS.magic} className="w-4 h-4" />
                 Generate
@@ -452,6 +456,41 @@ export default function CustomEditor({ htmlContent, originalUrl }) {
     });
     }, []);
     
+    const handleDownload = useCallback(() => {
+        try {
+            const doc = iframeRef.current?.contentDocument;
+            if (!doc) return;
+            
+            // Clone the document to avoid modifying the original
+            const clonedDoc = doc.cloneNode(true);
+            
+            // Add base tag if originalUrl is provided
+            if (originalUrl && clonedDoc.head) {
+                let baseEl = clonedDoc.querySelector('head base');
+                if (!baseEl) {
+                    baseEl = clonedDoc.createElement('base');
+                    // Prepend so it affects all subsequent relative URLs
+                    clonedDoc.head.prepend(baseEl);
+                }
+                baseEl.setAttribute('href', originalUrl);
+            }
+            
+            const doctype = '<!doctype html>';
+            const serialized = `${doctype}\n${clonedDoc.documentElement.outerHTML}`;
+            const blob = new Blob([serialized], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'edited.html';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading HTML:', error);
+        }
+    }, [originalUrl]);
+
     const handleGenerate = () => {
         // This is where you would send the layout to the backend.
         // For now, we'll just log the locked elements.
@@ -472,7 +511,7 @@ export default function CustomEditor({ htmlContent, originalUrl }) {
         <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
             <LeftSidebar tree={domTree} selectedId={selectedId} lockedIds={lockedIds} onSelect={handleSelect} onDrop={handleDrop} onToggleLock={handleToggleLock} scrollContainerRef={leftSidebarScrollRef}/>
             <div className="flex-1 flex flex-col">
-                <Toolbar zoom={zoom} setZoom={setZoom} device={device} setDevice={setDevice} onGenerate={handleGenerate} />
+                <Toolbar zoom={zoom} setZoom={setZoom} device={device} setDevice={setDevice} onGenerate={handleGenerate} onDownload={handleDownload} />
                 <CenterPanel iframeRef={iframeRef} device={device} zoom={zoom} />
             </div>
             <RightSidebar element={selectedElement} onStyleChange={handleStyleChange} />
